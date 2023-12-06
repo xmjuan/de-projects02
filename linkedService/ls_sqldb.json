@@ -1,0 +1,12 @@
+{
+	"name": "ls_sqldb",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"connectionString": "integrated security=False;encrypt=True;connection timeout=30;data source=fifasqlsever.database.windows.net;initial catalog=fifa_sql_db;user id=sqladmin",
+			"encryptedCredential": "ew0KICAiVmVyc2lvbiI6ICIyMDE3LTExLTMwIiwNCiAgIlByb3RlY3Rpb25Nb2RlIjogIktleSIsDQogICJTZWNyZXRDb250ZW50VHlwZSI6ICJQbGFpbnRleHQiLA0KICAiQ3JlZGVudGlhbElkIjogIkRBVEFGQUNUT1JZQDU3QzU1NTU3LUM3QTUtNENCMi1BNUFDLTlCNzAyN0Y5MDI3OV8xNmI2MjcwZC1mY2Q4LTQ5ZWUtYTRkNS0zYWM1ZmRmNTk3MDIiDQp9"
+		}
+	}
+}
