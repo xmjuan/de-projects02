@@ -1,0 +1,100 @@
+{
+	"name": "fifa_scd",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "fifa_dl_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourcefifacsv"
+				},
+				{
+					"dataset": {
+						"referenceName": "fifa_sqldb_tb",
+						"type": "DatasetReference"
+					},
+					"name": "existingfifa"
+				}
+			],
+			"sinks": [
+				{
+					"name": "sink1"
+				}
+			],
+			"transformations": [
+				{
+					"name": "callnewhashvalues"
+				},
+				{
+					"name": "callexistinghashvalue"
+				},
+				{
+					"name": "checknewdata"
+				},
+				{
+					"name": "addsurrogatekey"
+				},
+				{
+					"name": "getmaxskey"
+				},
+				{
+					"name": "joinmaxskey"
+				},
+				{
+					"name": "addskey"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     parameter_ID as string ('ID'),",
+				"     parameter_SCD as string ('Club,Wage,Position')",
+				"}",
+				"source(output(",
+				"          ID as string,",
+				"          Name as string,",
+				"          Age as string,",
+				"          Nationality as string,",
+				"          Club as string,",
+				"          Wage as string,",
+				"          PreferredFoot as string,",
+				"          Position as string",
+				"     ),",
+				"     allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourcefifacsv",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> existingfifa",
+				"sourcefifacsv derive(ID_Hash = md5(byName($parameter_ID)),",
+				"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callnewhashvalues",
+				"existingfifa derive(ID_Hash = md5(byName($parameter_ID)),",
+				"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callexistinghashvalue",
+				"callnewhashvalues, callexistinghashvalue exists(callnewhashvalues@ID_Hash == callexistinghashvalue@ID_Hash",
+				"     && callnewhashvalues@SCD_Hash == callexistinghashvalue@SCD_Hash,",
+				"     negate:true,",
+				"     broadcast: 'auto')~> checknewdata",
+				"checknewdata keyGenerate(output({$Key} as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> addsurrogatekey",
+				"callexistinghashvalue aggregate(maxskey = max(toInteger(byName('$key')))) ~> getmaxskey",
+				"addsurrogatekey, getmaxskey join(maxskey=={$Key}||true(),",
+				"     joinType:'cross',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinmaxskey",
+				"joinmaxskey derive({$Key} = {$Key}+iifNull(maxskey,0),",
+				"          Active = 1,",
+				"          ActiveStartTime = currentUTC(),",
+				"          ActiveEndTime = toTimestamp(toString(null()))) ~> addskey",
+				"addskey sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> sink1"
+			]
+		}
+	}
+}
