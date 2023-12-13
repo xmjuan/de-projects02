@@ -1,7 +1,7 @@
 {
-	"name": "fifa_scd_append",
+	"name": "fifa_scd_upsert",
 	"properties": {
-		"description": "append new records",
+		"description": "add new records and update existing records",
 		"type": "MappingDataFlow",
 		"typeProperties": {
 			"sources": [
@@ -54,6 +54,24 @@
 				},
 				{
 					"name": "selectreleventcolumns"
+				},
+				{
+					"name": "updateexistingdata"
+				},
+				{
+					"name": "amendactivestatus"
+				},
+				{
+					"name": "selectrelevantcolumns"
+				},
+				{
+					"name": "insertset"
+				},
+				{
+					"name": "updateset"
+				},
+				{
+					"name": "unioninsertupdate"
 				}
 			],
 			"scriptLines": [
@@ -104,12 +122,26 @@
 				"     ),",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true) ~> selectreleventcolumns",
-				"selectreleventcolumns sink(allowSchemaDrift: true,",
+				"callexistinghashvalue, checknewdata exists(callexistinghashvalue@ID_Hash == callnewhashvalues@ID_Hash,",
+				"     negate:false,",
+				"     broadcast: 'auto')~> updateexistingdata",
+				"updateexistingdata derive(Active = 0,",
+				"          ActiveEndTime = currentUTC()) ~> amendactivestatus",
+				"amendactivestatus select(mapColumn(",
+				"          each(match(!in(['ID_Hash', 'SCD_Hash'], name)))",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> selectrelevantcolumns",
+				"selectreleventcolumns alterRow(insertIf(true())) ~> insertset",
+				"selectrelevantcolumns alterRow(updateIf(true())) ~> updateset",
+				"insertset, updateset union(byName: true)~> unioninsertupdate",
+				"unioninsertupdate sink(allowSchemaDrift: true,",
 				"     validateSchema: false,",
 				"     deletable:false,",
 				"     insertable:true,",
-				"     updateable:false,",
+				"     updateable:true,",
 				"     upsertable:false,",
+				"     keys:[($parameter_ID)],",
 				"     format: 'table',",
 				"     skipDuplicateMapInputs: true,",
 				"     skipDuplicateMapOutputs: true,",
