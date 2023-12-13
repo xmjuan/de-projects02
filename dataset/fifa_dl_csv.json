@@ -10,7 +10,7 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"fileName": "Fifa_1.csv",
+				"fileName": "Fifa_unittest.csv",
 				"fileSystem": "fifa"
 			},
 			"columnDelimiter": ",",
