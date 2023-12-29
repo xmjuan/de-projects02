@@ -1,0 +1,16 @@
+{
+	"name": "adf_ds_fifa_sql_table",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_sqldb",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": "dbo",
+			"table": "tbl_FIFAData"
+		}
+	}
+}

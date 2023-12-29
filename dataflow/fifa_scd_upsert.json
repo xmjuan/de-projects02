@@ -1,0 +1,140 @@
+{
+	"name": "fifa_scd_upsert",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "adf_ds_fifa_source_csv",
+						"type": "DatasetReference"
+					},
+					"name": "sourceFifaCsv"
+				},
+				{
+					"dataset": {
+						"referenceName": "adf_ds_fifa_sql_table",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingData"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "adf_ds_fifa_sql_table",
+						"type": "DatasetReference"
+					},
+					"name": "SinkToSqldb"
+				}
+			],
+			"transformations": [
+				{
+					"name": "CallNewHashValues"
+				},
+				{
+					"name": "CallExistingHashValues"
+				},
+				{
+					"name": "CheckForNewData"
+				},
+				{
+					"name": "AddSkey"
+				},
+				{
+					"name": "GetMaxSkeyFromExisting"
+				},
+				{
+					"name": "joinMaxSkey"
+				},
+				{
+					"name": "CalcuateExtraColumn"
+				},
+				{
+					"name": "SelectRelevantColumns"
+				},
+				{
+					"name": "UpdateExistingData"
+				},
+				{
+					"name": "ChangeUpdateStatus"
+				},
+				{
+					"name": "SelectRelevantColumes"
+				},
+				{
+					"name": "InsertSet"
+				},
+				{
+					"name": "UpdateSet"
+				},
+				{
+					"name": "UnionUpdateInsert"
+				}
+			],
+			"scriptLines": [
+				"parameters{",
+				"     parameter_ID as string ('ID'),",
+				"     parameter_SCD as string ('Club,Wage,Position')",
+				"}",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     ignoreNoFilesFound: false) ~> sourceFifaCsv",
+				"source(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     isolationLevel: 'READ_UNCOMMITTED',",
+				"     format: 'table') ~> ExistingData",
+				"sourceFifaCsv derive(hash_ID = md5(byName($parameter_ID)),",
+				"          hash_SCD = md5(byNames(split($parameter_SCD, \",\")))) ~> CallNewHashValues",
+				"ExistingData derive(hash_ID = md5(byName($parameter_ID)),",
+				"          hash_scd = md5(byNames(split($parameter_SCD, \",\")))) ~> CallExistingHashValues",
+				"CallNewHashValues, CallExistingHashValues exists(CallNewHashValues@hash_ID == CallExistingHashValues@hash_ID",
+				"     && CallNewHashValues@hash_SCD == CallExistingHashValues@hash_scd,",
+				"     negate:true,",
+				"     broadcast: 'auto')~> CheckForNewData",
+				"CheckForNewData keyGenerate(output(SKey as long),",
+				"     startAt: 1L,",
+				"     stepValue: 1L) ~> AddSkey",
+				"CallExistingHashValues aggregate(MaxSkey = max(toInteger(byName('SKey')))) ~> GetMaxSkeyFromExisting",
+				"AddSkey, GetMaxSkeyFromExisting join(MaxSkey==SKey||true(),",
+				"     joinType:'cross',",
+				"     matchType:'exact',",
+				"     ignoreSpaces: false,",
+				"     broadcast: 'auto')~> joinMaxSkey",
+				"joinMaxSkey derive(Skey = SKey + iifNull(MaxSkey, 0),",
+				"          Active = 1,",
+				"          ActiveStartTime = currentUTC(),",
+				"          ActiveEndTime = toTimestamp(toString(null()))) ~> CalcuateExtraColumn",
+				"CalcuateExtraColumn select(mapColumn(",
+				"          each(match(name!='hash_ID' && name!='hash_SCD' && name!='MaxSkey'))",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectRelevantColumns",
+				"CallExistingHashValues, CheckForNewData exists(CallExistingHashValues@hash_ID == CallNewHashValues@hash_ID,",
+				"     negate:false,",
+				"     broadcast: 'auto')~> UpdateExistingData",
+				"UpdateExistingData derive(Active = 0,",
+				"          ActiveEndTime = currentUTC()) ~> ChangeUpdateStatus",
+				"ChangeUpdateStatus select(mapColumn(",
+				"          each(match(!in(['hash_ID', 'hash_SCD'], name)))",
+				"     ),",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true) ~> SelectRelevantColumes",
+				"SelectRelevantColumns alterRow(insertIf(true())) ~> InsertSet",
+				"SelectRelevantColumes alterRow(updateIf(true())) ~> UpdateSet",
+				"InsertSet, UpdateSet union(byName: true)~> UnionUpdateInsert",
+				"UnionUpdateInsert sink(allowSchemaDrift: true,",
+				"     validateSchema: false,",
+				"     deletable:false,",
+				"     insertable:true,",
+				"     updateable:true,",
+				"     upsertable:false,",
+				"     keys:[($parameter_ID)],",
+				"     format: 'table',",
+				"     skipDuplicateMapInputs: true,",
+				"     skipDuplicateMapOutputs: true,",
+				"     errorHandlingOption: 'stopOnFirstError') ~> SinkToSqldb"
+			]
+		}
+	}
+}

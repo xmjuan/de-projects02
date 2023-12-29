@@ -1,0 +1,23 @@
+{
+	"name": "adf_ds_fifa_source_csv",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "ls_storagegen2",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": "Fifa_1.csv",
+				"fileSystem": "fifa"
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	}
+}
