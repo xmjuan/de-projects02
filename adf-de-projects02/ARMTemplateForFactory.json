@@ -17,7 +17,7 @@
 		},
 		"ls_storagegen2_properties_typeProperties_url": {
 			"type": "string",
-			"defaultValue": "https://deprojectsstoragetst02.dfs.core.windows.net/"
+			"defaultValue": "https://deprojectstoragetst02.dfs.core.windows.net/"
 		}
 	},
 	"variables": {
@@ -51,9 +51,9 @@
 									"parameter_SCD": "'Club,Wage,Position'"
 								},
 								"datasetParameters": {
-									"sourcefifacsv": {},
-									"existingfifa": {},
-									"sinktosqldb": {}
+									"sourceFifaCsv": {},
+									"ExistingData": {},
+									"SinkToSqldb": {}
 								}
 							},
 							"staging": {},
@@ -75,7 +75,7 @@
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/fifa_dl_csv')]",
+			"name": "[concat(parameters('factoryName'), '/adf_ds_fifa_source_csv')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -96,47 +96,14 @@
 					"firstRowAsHeader": true,
 					"quoteChar": "\""
 				},
-				"schema": [
-					{
-						"name": "ID",
-						"type": "String"
-					},
-					{
-						"name": "Name",
-						"type": "String"
-					},
-					{
-						"name": "Age",
-						"type": "String"
-					},
-					{
-						"name": "Nationality",
-						"type": "String"
-					},
-					{
-						"name": "Club",
-						"type": "String"
-					},
-					{
-						"name": "Wage",
-						"type": "String"
-					},
-					{
-						"name": "PreferredFoot",
-						"type": "String"
-					},
-					{
-						"name": "Position",
-						"type": "String"
-					}
-				]
+				"schema": []
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/ls_storagegen2')]"
 			]
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/fifa_sqldb_tb')]",
+			"name": "[concat(parameters('factoryName'), '/adf_ds_fifa_sql_table')]",
 			"type": "Microsoft.DataFactory/factories/datasets",
 			"apiVersion": "2018-06-01",
 			"properties": {
@@ -187,207 +154,79 @@
 			"dependsOn": []
 		},
 		{
-			"name": "[concat(parameters('factoryName'), '/fifa_scd_append')]",
-			"type": "Microsoft.DataFactory/factories/dataflows",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"description": "append new records",
-				"type": "MappingDataFlow",
-				"typeProperties": {
-					"sources": [
-						{
-							"dataset": {
-								"referenceName": "fifa_dl_csv",
-								"type": "DatasetReference"
-							},
-							"name": "sourcefifacsv"
-						},
-						{
-							"dataset": {
-								"referenceName": "fifa_sqldb_tb",
-								"type": "DatasetReference"
-							},
-							"name": "existingfifa"
-						}
-					],
-					"sinks": [
-						{
-							"dataset": {
-								"referenceName": "fifa_sqldb_tb",
-								"type": "DatasetReference"
-							},
-							"name": "sinktosqldb"
-						}
-					],
-					"transformations": [
-						{
-							"name": "callnewhashvalues"
-						},
-						{
-							"name": "callexistinghashvalue"
-						},
-						{
-							"name": "checknewdata"
-						},
-						{
-							"name": "addsurrogatekey",
-							"description": "Adding new key Skey starting from 1 with step 1"
-						},
-						{
-							"name": "getmaxskey"
-						},
-						{
-							"name": "joinmaxskey"
-						},
-						{
-							"name": "addskeyandothercolumns"
-						},
-						{
-							"name": "selectreleventcolumns"
-						}
-					],
-					"scriptLines": [
-						"parameters{",
-						"     parameter_ID as string ('ID'),",
-						"     parameter_SCD as string ('Club,Wage,Position')",
-						"}",
-						"source(output(",
-						"          ID as string,",
-						"          Name as string,",
-						"          Age as string,",
-						"          Nationality as string,",
-						"          Club as string,",
-						"          Wage as string,",
-						"          PreferredFoot as string,",
-						"          Position as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> sourcefifacsv",
-						"source(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     format: 'table') ~> existingfifa",
-						"sourcefifacsv derive(ID_Hash = md5(byName($parameter_ID)),",
-						"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callnewhashvalues",
-						"existingfifa derive(ID_Hash = md5(byName($parameter_ID)),",
-						"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callexistinghashvalue",
-						"callnewhashvalues, callexistinghashvalue exists(callnewhashvalues@ID_Hash == callexistinghashvalue@ID_Hash",
-						"     && callnewhashvalues@SCD_Hash == callexistinghashvalue@SCD_Hash,",
-						"     negate:true,",
-						"     broadcast: 'auto')~> checknewdata",
-						"checknewdata keyGenerate(output(Skey as long),",
-						"     startAt: 1L,",
-						"     stepValue: 1L) ~> addsurrogatekey",
-						"callexistinghashvalue aggregate(maxskey = max(toInteger(byName('Skey')))) ~> getmaxskey",
-						"addsurrogatekey, getmaxskey join(maxskey==Skey||true(),",
-						"     joinType:'cross',",
-						"     matchType:'exact',",
-						"     ignoreSpaces: false,",
-						"     broadcast: 'auto')~> joinmaxskey",
-						"joinmaxskey derive(Skey = Skey+iifNull(maxskey,0),",
-						"          Active = 1,",
-						"          ActiveStartTime = currentUTC(),",
-						"          ActiveEndTime = toTimestamp(toString(null()))) ~> addskeyandothercolumns",
-						"addskeyandothercolumns select(mapColumn(",
-						"          each(match(name!='ID_Hash'&&name!='SCD_Hash'&&name!='MaxSkey'))",
-						"     ),",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> selectreleventcolumns",
-						"selectreleventcolumns sink(allowSchemaDrift: true,",
-						"     validateSchema: false,",
-						"     deletable:false,",
-						"     insertable:true,",
-						"     updateable:false,",
-						"     upsertable:false,",
-						"     format: 'table',",
-						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true,",
-						"     errorHandlingOption: 'stopOnFirstError') ~> sinktosqldb"
-					]
-				}
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/fifa_dl_csv')]",
-				"[concat(variables('factoryId'), '/datasets/fifa_sqldb_tb')]"
-			]
-		},
-		{
 			"name": "[concat(parameters('factoryName'), '/fifa_scd_upsert')]",
 			"type": "Microsoft.DataFactory/factories/dataflows",
 			"apiVersion": "2018-06-01",
 			"properties": {
-				"description": "add new records and update existing records",
 				"type": "MappingDataFlow",
 				"typeProperties": {
 					"sources": [
 						{
 							"dataset": {
-								"referenceName": "fifa_dl_csv",
+								"referenceName": "adf_ds_fifa_source_csv",
 								"type": "DatasetReference"
 							},
-							"name": "sourcefifacsv"
+							"name": "sourceFifaCsv"
 						},
 						{
 							"dataset": {
-								"referenceName": "fifa_sqldb_tb",
+								"referenceName": "adf_ds_fifa_sql_table",
 								"type": "DatasetReference"
 							},
-							"name": "existingfifa"
+							"name": "ExistingData"
 						}
 					],
 					"sinks": [
 						{
 							"dataset": {
-								"referenceName": "fifa_sqldb_tb",
+								"referenceName": "adf_ds_fifa_sql_table",
 								"type": "DatasetReference"
 							},
-							"name": "sinktosqldb"
+							"name": "SinkToSqldb"
 						}
 					],
 					"transformations": [
 						{
-							"name": "callnewhashvalues"
+							"name": "CallNewHashValues"
 						},
 						{
-							"name": "callexistinghashvalue"
+							"name": "CallExistingHashValues"
 						},
 						{
-							"name": "checknewdata"
+							"name": "CheckForNewData"
 						},
 						{
-							"name": "addsurrogatekey",
-							"description": "Adding new key Skey starting from 1 with step 1"
+							"name": "AddSkey"
 						},
 						{
-							"name": "getmaxskey"
+							"name": "GetMaxSkeyFromExisting"
 						},
 						{
-							"name": "joinmaxskey"
+							"name": "joinMaxSkey"
 						},
 						{
-							"name": "addskeyandothercolumns"
+							"name": "CalcuateExtraColumn"
 						},
 						{
-							"name": "selectreleventcolumns"
+							"name": "SelectRelevantColumns"
 						},
 						{
-							"name": "updateexistingdata"
+							"name": "UpdateExistingData"
 						},
 						{
-							"name": "amendactivestatus"
+							"name": "ChangeUpdateStatus"
 						},
 						{
-							"name": "selectrelevantcolumns"
+							"name": "SelectRelevantColumes"
 						},
 						{
-							"name": "insertset"
+							"name": "InsertSet"
 						},
 						{
-							"name": "updateset"
+							"name": "UpdateSet"
 						},
 						{
-							"name": "unioninsertupdate"
+							"name": "UnionUpdateInsert"
 						}
 					],
 					"scriptLines": [
@@ -395,63 +234,53 @@
 						"     parameter_ID as string ('ID'),",
 						"     parameter_SCD as string ('Club,Wage,Position')",
 						"}",
-						"source(output(",
-						"          ID as string,",
-						"          Name as string,",
-						"          Age as string,",
-						"          Nationality as string,",
-						"          Club as string,",
-						"          Wage as string,",
-						"          PreferredFoot as string,",
-						"          Position as string",
-						"     ),",
-						"     allowSchemaDrift: true,",
+						"source(allowSchemaDrift: true,",
 						"     validateSchema: false,",
-						"     ignoreNoFilesFound: false) ~> sourcefifacsv",
+						"     ignoreNoFilesFound: false) ~> sourceFifaCsv",
 						"source(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     isolationLevel: 'READ_UNCOMMITTED',",
-						"     format: 'table') ~> existingfifa",
-						"sourcefifacsv derive(ID_Hash = md5(byName($parameter_ID)),",
-						"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callnewhashvalues",
-						"existingfifa derive(ID_Hash = md5(byName($parameter_ID)),",
-						"          SCD_Hash = md5(byNames(split($parameter_SCD, ',')))) ~> callexistinghashvalue",
-						"callnewhashvalues, callexistinghashvalue exists(callnewhashvalues@ID_Hash == callexistinghashvalue@ID_Hash",
-						"     && callnewhashvalues@SCD_Hash == callexistinghashvalue@SCD_Hash,",
+						"     format: 'table') ~> ExistingData",
+						"sourceFifaCsv derive(hash_ID = md5(byName($parameter_ID)),",
+						"          hash_SCD = md5(byNames(split($parameter_SCD, \",\")))) ~> CallNewHashValues",
+						"ExistingData derive(hash_ID = md5(byName($parameter_ID)),",
+						"          hash_scd = md5(byNames(split($parameter_SCD, \",\")))) ~> CallExistingHashValues",
+						"CallNewHashValues, CallExistingHashValues exists(CallNewHashValues@hash_ID == CallExistingHashValues@hash_ID",
+						"     && CallNewHashValues@hash_SCD == CallExistingHashValues@hash_scd,",
 						"     negate:true,",
-						"     broadcast: 'auto')~> checknewdata",
-						"checknewdata keyGenerate(output(Skey as long),",
+						"     broadcast: 'auto')~> CheckForNewData",
+						"CheckForNewData keyGenerate(output(SKey as long),",
 						"     startAt: 1L,",
-						"     stepValue: 1L) ~> addsurrogatekey",
-						"callexistinghashvalue aggregate(maxskey = max(toInteger(byName('Skey')))) ~> getmaxskey",
-						"addsurrogatekey, getmaxskey join(maxskey==Skey||true(),",
+						"     stepValue: 1L) ~> AddSkey",
+						"CallExistingHashValues aggregate(MaxSkey = max(toInteger(byName('SKey')))) ~> GetMaxSkeyFromExisting",
+						"AddSkey, GetMaxSkeyFromExisting join(MaxSkey==SKey||true(),",
 						"     joinType:'cross',",
 						"     matchType:'exact',",
 						"     ignoreSpaces: false,",
-						"     broadcast: 'auto')~> joinmaxskey",
-						"joinmaxskey derive(Skey = Skey+iifNull(maxskey,0),",
+						"     broadcast: 'auto')~> joinMaxSkey",
+						"joinMaxSkey derive(Skey = SKey + iifNull(MaxSkey, 0),",
 						"          Active = 1,",
 						"          ActiveStartTime = currentUTC(),",
-						"          ActiveEndTime = toTimestamp(toString(null()))) ~> addskeyandothercolumns",
-						"addskeyandothercolumns select(mapColumn(",
-						"          each(match(name!='ID_Hash'&&name!='SCD_Hash'&&name!='MaxSkey'))",
+						"          ActiveEndTime = toTimestamp(toString(null()))) ~> CalcuateExtraColumn",
+						"CalcuateExtraColumn select(mapColumn(",
+						"          each(match(name!='hash_ID'&&name!='hash_SCD'&&name!='MaxSkey'))",
 						"     ),",
 						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> selectreleventcolumns",
-						"callexistinghashvalue, checknewdata exists(callexistinghashvalue@ID_Hash == callnewhashvalues@ID_Hash,",
+						"     skipDuplicateMapOutputs: true) ~> SelectRelevantColumns",
+						"CallExistingHashValues, CheckForNewData exists(CallExistingHashValues@hash_ID == CallNewHashValues@hash_ID,",
 						"     negate:false,",
-						"     broadcast: 'auto')~> updateexistingdata",
-						"updateexistingdata derive(Active = 0,",
-						"          ActiveEndTime = currentUTC()) ~> amendactivestatus",
-						"amendactivestatus select(mapColumn(",
-						"          each(match(!in(['ID_Hash','SCD_Hash'],name)))",
+						"     broadcast: 'auto')~> UpdateExistingData",
+						"UpdateExistingData derive(Active = 0,",
+						"          ActiveEndTime = currentUTC()) ~> ChangeUpdateStatus",
+						"ChangeUpdateStatus select(mapColumn(",
+						"          each(match(!in(['hash_ID','hash_SCD'],name)))",
 						"     ),",
 						"     skipDuplicateMapInputs: true,",
-						"     skipDuplicateMapOutputs: true) ~> selectrelevantcolumns",
-						"selectreleventcolumns alterRow(insertIf(true())) ~> insertset",
-						"selectrelevantcolumns alterRow(updateIf(true())) ~> updateset",
-						"insertset, updateset union(byName: true)~> unioninsertupdate",
-						"unioninsertupdate sink(allowSchemaDrift: true,",
+						"     skipDuplicateMapOutputs: true) ~> SelectRelevantColumes",
+						"SelectRelevantColumns alterRow(insertIf(true())) ~> InsertSet",
+						"SelectRelevantColumes alterRow(updateIf(true())) ~> UpdateSet",
+						"InsertSet, UpdateSet union(byName: true)~> UnionUpdateInsert",
+						"UnionUpdateInsert sink(allowSchemaDrift: true,",
 						"     validateSchema: false,",
 						"     deletable:false,",
 						"     insertable:true,",
@@ -461,13 +290,13 @@
 						"     format: 'table',",
 						"     skipDuplicateMapInputs: true,",
 						"     skipDuplicateMapOutputs: true,",
-						"     errorHandlingOption: 'stopOnFirstError') ~> sinktosqldb"
+						"     errorHandlingOption: 'stopOnFirstError') ~> SinkToSqldb"
 					]
 				}
 			},
 			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/fifa_dl_csv')]",
-				"[concat(variables('factoryId'), '/datasets/fifa_sqldb_tb')]"
+				"[concat(variables('factoryId'), '/datasets/adf_ds_fifa_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/adf_ds_fifa_sql_table')]"
 			]
 		}
 	]

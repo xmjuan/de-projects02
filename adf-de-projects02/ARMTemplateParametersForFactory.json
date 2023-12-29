@@ -12,7 +12,7 @@
 			"value": ""
 		},
 		"ls_storagegen2_properties_typeProperties_url": {
-			"value": "https://deprojectsstoragetst02.dfs.core.windows.net/"
+			"value": "https://deprojectstoragetst02.dfs.core.windows.net/"
 		}
 	}
 }

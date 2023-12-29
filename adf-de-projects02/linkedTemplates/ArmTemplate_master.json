@@ -17,7 +17,7 @@
 		},
 		"ls_storagegen2_properties_typeProperties_url": {
 			"type": "string",
-			"defaultValue": "https://deprojectsstoragetst02.dfs.core.windows.net/"
+			"defaultValue": "https://deprojectstoragetst02.dfs.core.windows.net/"
 		},
 		"containerUri": {
 			"type": "string",
