@@ -21,6 +21,20 @@
 						"parameters": {
 							"parameter_ID": "'ID'",
 							"parameter_SCD": "'Club,Wage,Position'"
+						},
+						"datasetParameters": {
+							"sourceFifaCsv": {
+								"containerName": "fifa",
+								"fileName": "Fifa_1.csv"
+							},
+							"ExistingData": {
+								"tableName": "tbl_FIFAData",
+								"sName": "dbo"
+							},
+							"SinkToSqldb": {
+								"tableName": "tbl_FIFAData",
+								"sName": "dbo"
+							}
 						}
 					},
 					"compute": {
