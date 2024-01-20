@@ -51,9 +51,18 @@
 									"parameter_SCD": "'Club,Wage,Position'"
 								},
 								"datasetParameters": {
-									"sourceFifaCsv": {},
-									"ExistingData": {},
-									"SinkToSqldb": {}
+									"sourceFifaCsv": {
+										"containerName": "fifa",
+										"fileName": "Fifa_1.csv"
+									},
+									"ExistingData": {
+										"tableName": "tbl_FIFAData",
+										"sName": "dbo"
+									},
+									"SinkToSqldb": {
+										"tableName": "tbl_FIFAData",
+										"sName": "dbo"
+									}
 								}
 							},
 							"staging": {},
@@ -83,13 +92,27 @@
 					"referenceName": "ls_storagegen2",
 					"type": "LinkedServiceReference"
 				},
+				"parameters": {
+					"containerName": {
+						"type": "string"
+					},
+					"fileName": {
+						"type": "string"
+					}
+				},
 				"annotations": [],
 				"type": "DelimitedText",
 				"typeProperties": {
 					"location": {
 						"type": "AzureBlobFSLocation",
-						"fileName": "Fifa_1.csv",
-						"fileSystem": "fifa"
+						"fileName": {
+							"value": "@dataset().fileName",
+							"type": "Expression"
+						},
+						"fileSystem": {
+							"value": "@dataset().containerName",
+							"type": "Expression"
+						}
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
@@ -111,12 +134,23 @@
 					"referenceName": "ls_sqldb",
 					"type": "LinkedServiceReference"
 				},
+				"parameters": {
+					"tableName": {
+						"type": "string"
+					},
+					"sName": {
+						"type": "string"
+					}
+				},
 				"annotations": [],
 				"type": "AzureSqlTable",
 				"schema": [],
 				"typeProperties": {
 					"schema": "dbo",
-					"table": "tbl_FIFAData"
+					"table": {
+						"value": "@dataset().tableName",
+						"type": "Expression"
+					}
 				}
 			},
 			"dependsOn": [
