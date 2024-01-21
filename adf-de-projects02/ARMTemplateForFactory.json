@@ -152,8 +152,14 @@
 								"referenceName": "adf_ds_fifa_source_csv",
 								"type": "DatasetReference",
 								"parameters": {
-									"containerName": "ipl",
-									"fileName": "IPL_Players-1.csv"
+									"containerName": {
+										"value": "@pipeline().parameters.P_ContainerName_GMS",
+										"type": "Expression"
+									},
+									"fileName": {
+										"value": "@pipeline().parameters.P_FileName_GMS",
+										"type": "Expression"
+									}
 								}
 							},
 							"fieldList": [
@@ -308,6 +314,12 @@
 					"P_FileType": {
 						"type": "string",
 						"defaultValue": "ipl"
+					},
+					"P_ContainerName_GMS": {
+						"type": "string"
+					},
+					"P_FileName_GMS": {
+						"type": "string"
 					}
 				},
 				"annotations": []
