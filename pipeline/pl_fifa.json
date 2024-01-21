@@ -19,21 +19,45 @@
 						"referenceName": "fifa_scd_upsert",
 						"type": "DataFlowReference",
 						"parameters": {
-							"parameter_ID": "'ID'",
-							"parameter_SCD": "'Club,Wage,Position'"
+							"parameter_ID": {
+								"value": "'@{pipeline().parameters.parameter_ID}'",
+								"type": "Expression"
+							},
+							"parameter_SCD": {
+								"value": "'@{pipeline().parameters.parameter_SCD}'",
+								"type": "Expression"
+							}
 						},
 						"datasetParameters": {
 							"sourceFifaCsv": {
-								"containerName": "fifa",
-								"fileName": "Fifa_1.csv"
+								"containerName": {
+									"value": "@pipeline().parameters.P_containerName",
+									"type": "Expression"
+								},
+								"fileName": {
+									"value": "@pipeline().parameters.P_fileName",
+									"type": "Expression"
+								}
 							},
 							"ExistingData": {
-								"tableName": "tbl_FIFAData",
-								"sName": "dbo"
+								"tableName": {
+									"value": "@pipeline().parameters.P_tableName",
+									"type": "Expression"
+								},
+								"sName": {
+									"value": "@pipeline().parameters.P_sName",
+									"type": "Expression"
+								}
 							},
 							"SinkToSqldb": {
-								"tableName": "tbl_FIFAData",
-								"sName": "dbo"
+								"tableName": {
+									"value": "@pipeline().parameters.P_tableName",
+									"type": "Expression"
+								},
+								"sName": {
+									"value": "@pipeline().parameters.P_sName",
+									"type": "Expression"
+								}
 							}
 						}
 					},
@@ -45,6 +69,28 @@
 				}
 			}
 		],
+		"parameters": {
+			"P_containerName": {
+				"type": "string"
+			},
+			"P_fileName": {
+				"type": "string"
+			},
+			"P_sName": {
+				"type": "string"
+			},
+			"P_tableName": {
+				"type": "string"
+			},
+			"parameter_ID": {
+				"type": "string",
+				"defaultValue": "ID"
+			},
+			"parameter_SCD": {
+				"type": "string",
+				"defaultValue": "Club,Wage,Position"
+			}
+		},
 		"annotations": []
 	}
 }
