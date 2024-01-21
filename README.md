@@ -1,5 +1,7 @@
 # de-projects02
 #### Problem
+- Create dynamic file details table in sql db and stored procedure
+- Get meta data structure of source and look up the right structure in sql db to write to the right table (execute SCD pipelines on conditions of meta data structure matching between source (container) and destination (sql db)
 - Create data flow for slowly changing dimension tables type 2 -> add active status column, active start time and active end time), at the same time keep history
 - source: data lake gen 2
 - sink: sql database
