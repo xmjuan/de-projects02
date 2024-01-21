@@ -47,21 +47,45 @@
 								"referenceName": "fifa_scd_upsert",
 								"type": "DataFlowReference",
 								"parameters": {
-									"parameter_ID": "'ID'",
-									"parameter_SCD": "'Club,Wage,Position'"
+									"parameter_ID": {
+										"value": "'@{pipeline().parameters.parameter_ID}'",
+										"type": "Expression"
+									},
+									"parameter_SCD": {
+										"value": "'@{pipeline().parameters.parameter_SCD}'",
+										"type": "Expression"
+									}
 								},
 								"datasetParameters": {
 									"sourceFifaCsv": {
-										"containerName": "fifa",
-										"fileName": "Fifa_1.csv"
+										"containerName": {
+											"value": "@pipeline().parameters.P_containerName",
+											"type": "Expression"
+										},
+										"fileName": {
+											"value": "@pipeline().parameters.P_fileName",
+											"type": "Expression"
+										}
 									},
 									"ExistingData": {
-										"tableName": "tbl_FIFAData",
-										"sName": "dbo"
+										"tableName": {
+											"value": "@pipeline().parameters.P_tableName",
+											"type": "Expression"
+										},
+										"sName": {
+											"value": "@pipeline().parameters.P_sName",
+											"type": "Expression"
+										}
 									},
 									"SinkToSqldb": {
-										"tableName": "tbl_FIFAData",
-										"sName": "dbo"
+										"tableName": {
+											"value": "@pipeline().parameters.P_tableName",
+											"type": "Expression"
+										},
+										"sName": {
+											"value": "@pipeline().parameters.P_sName",
+											"type": "Expression"
+										}
 									}
 								}
 							},
@@ -77,10 +101,221 @@
 				"policy": {
 					"elapsedTimeMetric": {}
 				},
+				"parameters": {
+					"P_containerName": {
+						"type": "string"
+					},
+					"P_fileName": {
+						"type": "string"
+					},
+					"P_sName": {
+						"type": "string"
+					},
+					"P_tableName": {
+						"type": "string"
+					},
+					"parameter_ID": {
+						"type": "string",
+						"defaultValue": "ID"
+					},
+					"parameter_SCD": {
+						"type": "string",
+						"defaultValue": "Club,Wage,Position"
+					}
+				},
 				"annotations": []
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/dataflows/fifa_scd_upsert')]"
+			]
+		},
+		{
+			"name": "[concat(parameters('factoryName'), '/pl_validateStructure')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "GetMeta_S",
+						"type": "GetMetadata",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"dataset": {
+								"referenceName": "adf_ds_fifa_source_csv",
+								"type": "DatasetReference",
+								"parameters": {
+									"containerName": "ipl",
+									"fileName": "IPL_Players-1.csv"
+								}
+							},
+							"fieldList": [
+								"structure"
+							],
+							"storeSettings": {
+								"type": "AzureBlobFSReadSettings",
+								"recursive": true,
+								"enablePartitionDiscovery": false
+							},
+							"formatSettings": {
+								"type": "DelimitedTextReadSettings"
+							}
+						}
+					},
+					{
+						"name": "If Condition1",
+						"type": "IfCondition",
+						"dependsOn": [
+							{
+								"activity": "GetMeta_S",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "LookupFileDetails",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"expression": {
+								"value": "@equals(activity('GetMeta_S').output.structure, json(activity('LookupFileDetails').output.firstRow.structure))",
+								"type": "Expression"
+							},
+							"ifFalseActivities": [
+								{
+									"name": "WaitFalse",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 10
+									}
+								}
+							],
+							"ifTrueActivities": [
+								{
+									"name": "WaitTrue",
+									"type": "Wait",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"waitTimeInSeconds": 5
+									}
+								},
+								{
+									"name": "Execute pl_fifa",
+									"type": "ExecutePipeline",
+									"dependsOn": [
+										{
+											"activity": "WaitTrue",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "pl_fifa",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"P_containerName": {
+												"value": "@activity('LookupFileDetails').output.firstRow.ContainerName",
+												"type": "Expression"
+											},
+											"P_fileName": {
+												"value": "@activity('LookupFileDetails').output.firstRow.FileName",
+												"type": "Expression"
+											},
+											"P_sName": {
+												"value": "@activity('LookupFileDetails').output.firstRow.SchemaName",
+												"type": "Expression"
+											},
+											"P_tableName": {
+												"value": "@activity('LookupFileDetails').output.firstRow.tableName",
+												"type": "Expression"
+											},
+											"parameter_ID": {
+												"value": "@activity('LookupFileDetails').output.firstRow.P_ID",
+												"type": "Expression"
+											},
+											"parameter_SCD": {
+												"value": "@activity('LookupFileDetails').output.firstRow.P_SCD",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "LookupFileDetails",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderStoredProcedureName": "[[dbo].[uspGetFileDetails]",
+								"storedProcedureParameters": {
+									"FileType": {
+										"type": "String",
+										"value": {
+											"value": "@pipeline().parameters.P_FileType",
+											"type": "Expression"
+										}
+									}
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "adf_ds_fifa_sql_table",
+								"type": "DatasetReference",
+								"parameters": {
+									"tableName": "tbl_IPLPlayers",
+									"sName": "dbo"
+								}
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"P_FileType": {
+						"type": "string",
+						"defaultValue": "ipl"
+					}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/adf_ds_fifa_source_csv')]",
+				"[concat(variables('factoryId'), '/datasets/adf_ds_fifa_sql_table')]",
+				"[concat(variables('factoryId'), '/pipelines/pl_fifa')]"
 			]
 		},
 		{
